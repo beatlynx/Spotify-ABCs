@@ -39,7 +39,7 @@ passport.use(
 
 //Session middleware
 app.use(session ({
-  secret: 'ab$cs',
+  secret: process.env.SESSION_SECRET,
   secure: false,
   httpOnly: false,
   resave: false,
