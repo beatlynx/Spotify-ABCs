@@ -34,11 +34,21 @@ passport.use(
       }); */
       session.spotifyAccessToken = accessToken;
       session.spotifyRefreshToken = refreshToken;
+      session.spotifyAuthenticated = true;
+      session.user = profile;
       console.log(profile.username);
-      return done();
+      return done(null, profile);
     },
   ),
 );
+
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((obj, done) => {
+  done(null, obj);
+});
 
 // Session middleware
 app.use(session({
@@ -49,17 +59,20 @@ app.use(session({
   saveUninitialized: true,
 }));
 
+app.use(passport.session());
+
+app.use(express.json());
+
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '/static/index.html'));
-  try {
-    console.log(session.spotifyAccessToken);
-  } catch (err) {
-    console.log('problemo');
-  }
 });
 
 app.get('/static/scripts.js', (_req, res) => {
   res.sendFile(path.join(__dirname, '/src/static/scripts.js'));
+});
+
+app.get('/favicon.ico', (_req, res) => {
+  res.sendFile(path.join(__dirname, '/static/favicon.ico'));
 });
 
 app.get('/scripts.js', (_req, res) => {
@@ -70,16 +83,31 @@ app.get('/auth/spotify', passport.authenticate('spotify', { scope: ['user-read-p
 
 app.get('/auth/spotify/callback', passport.authenticate('spotify', { successRedirect: '/', failureRedirect: '/' }));
 
+app.get('/auth/getuser', (req, res) => {
+  console.log(session.user);
+  res.send(JSON.parse(JSON.stringify(session.user)));
+});
+
+app.get('/auth/status', (req, res) => {
+  if (session.spotifyAuthenticated) {
+    const payload = JSON.stringify('{ auth: true }');
+    res.send(JSON.parse(payload));
+  } else {
+    const payload = JSON.stringify('{ auth: true }');
+    res.send(JSON.parse(payload));
+  }
+});
+
 app.post('/topartists', (_req, res) => {
   spotify.setAccessToken(session.spotifyAccessToken);
   spotify.getMyTopArtists()
     .then((data) => {
       const topArtists = data.body.items;
-      console.log(topArtists);
+      // console.log(topArtists);
       res.send(topArtists);
     }, (err) => {
       res.send(err);
-      console.log('Something went wrong!', err);
+      // console.log('Something went wrong!', err);
     });
 });
 
