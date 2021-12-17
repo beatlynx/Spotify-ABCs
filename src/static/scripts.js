@@ -1,8 +1,9 @@
+// eslint-disable-next-line no-unused-vars
 function displayTopArtists() {
-  var request = new XMLHttpRequest()
-  request.onload = function () {
-    document.getElementById("test").innerText = request.responseText
-  }
-  request.open('POST', '/topartists', false)
-  request.send()
+  const request = new XMLHttpRequest();
+  request.onload = function replaceText() {
+    document.getElementById('test').innerText = request.responseText;
+  };
+  request.open('POST', '/topartists', false);
+  request.send();
 }
