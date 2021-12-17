@@ -1,0 +1,19 @@
+{
+  "name": "spotify-abcs",
+  "version": "1.0.0",
+  "description": "Create fun playlists of your favorite artists on Spotify!",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beatlynx/Spotify-ABCs.git"
+  },
+  "author": "Beatlynx",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/beatlynx/Spotify-ABCs/issues"
+  },
+  "homepage": "https://github.com/beatlynx/Spotify-ABCs#readme"
+}
