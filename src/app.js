@@ -36,7 +36,6 @@ passport.use(
       session.spotifyRefreshToken = refreshToken;
       session.spotifyAuthenticated = true;
       session.user = profile;
-      console.log(profile.username);
       return done(null, profile);
     },
   ),
@@ -111,7 +110,7 @@ function rand(max) {
   return Math.floor(Math.random() * max);
 }
 
-function ensureAuthenticated (req, res, next) {
+function ensureAuthenticated(req, res, next) {
   if (session.spotifyAuthenticated) {
     next();
   } else {
@@ -127,13 +126,11 @@ async function searchLetter(artist, letter) {
     const dataList = Object.values(data.body.tracks.items);
     const finalList = [];
     dataList.forEach((track) => {
-      // console.log(track.name);
       if (track.name.startsWith(letter) || track.name.startsWith(`${letter}`.toUpperCase())) {
         finalList.push(track.name);
       }
     });
     const song = finalList[rand(finalList.length)];
-    // console.log(song);
     return song;
   } catch (err) {
     console.error(err);
@@ -192,10 +189,7 @@ async function createABCsPlaylist(info, artistName) {
   try {
     spotify.setAccessToken(session.spotifyAccessToken);
     const result = await spotify.createPlaylist(`Spotify ABCs: ${artistName}`);
-    const trackIds = await Promise.all(Object.values(JSON.parse(info)).map((track) => {
-      console.log(track.id);
-      return `spotify:track:${track.id}`;
-    }));
+    const trackIds = await Promise.all(Object.values(JSON.parse(info)).map((track) => `spotify:track:${track.id}`));
     await spotify.addTracksToPlaylist(result.body.id, trackIds);
     return result.body.external_urls.spotify;
   } catch (err) {
@@ -227,7 +221,30 @@ app.post('/abcstop', ensureAuthenticated, async (_req, res) => {
     let finalObject = '{\n';
     finalObject += `"0": ${JSON.stringify(finalResult)},`;
     finalObject += `"1": "${resultAbcsPlaylist}" }`;
-    console.log(finalObject);
+    res.send(finalObject);
+  } catch (err) {
+    res.send(err);
+  }
+});
+
+app.post('/abcs', ensureAuthenticated, async (req, res) => {
+  try {
+    const topArtistName = req.body.artist;
+    const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+    let result = await Promise.all(
+      letters.map(async (letter) => trackSearch(topArtistName, letter)),
+    );
+    result = result.filter((track) => track !== undefined);
+    let finalResult = '{\n';
+    for (let i = 0; i < result.length; i += 1) {
+      finalResult += `"${i}": ${result[i]}${(i !== result.length - 1) ? ',' : ''}\n`;
+    }
+    finalResult += '\n}';
+    finalResult = JSON.parse(JSON.stringify(finalResult));
+    const resultAbcsPlaylist = await createABCsPlaylist(finalResult, topArtistName);
+    let finalObject = '{\n';
+    finalObject += `"0": ${JSON.stringify(finalResult)},`;
+    finalObject += `"1": "${resultAbcsPlaylist}" }`;
     res.send(finalObject);
   } catch (err) {
     res.send(err);

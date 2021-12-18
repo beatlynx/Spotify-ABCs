@@ -119,6 +119,63 @@ function testPlaylist() {
 }
 
 // eslint-disable-next-line no-unused-vars
+function abcsArtist() {
+  const request = new XMLHttpRequest();
+  request.onload = function playlistSearch() {
+    if (document.getElementById('results_table')) {
+      document.getElementById('results_table').remove();
+    }
+
+    const table = document.createElement('table');
+    table.setAttribute('id', 'results_table');
+
+    const playlistLink = table.insertRow(0);
+
+    const plname = playlistLink.insertCell(0);
+    const pllink = playlistLink.insertCell(1);
+
+    plname.innerHTML = '<th scope="col">Playlist Link</th>';
+    pllink.innerHTML = `<th scope="col"><a href="${(JSON.parse(request.response))[1]}" target="#blank">Link</a></th>`;
+
+    const headers = table.insertRow(1);
+
+    table.className = 'table';
+
+    const name = headers.insertCell(0);
+    const name2 = headers.insertCell(1);
+
+    name.innerHTML = '<th scope="col">Song</th>';
+    name2.innerHTML = '';
+
+    let trackCount = 2;
+
+    Object.values(JSON.parse((JSON.parse(request.response))[0])).forEach((track) => {
+      const t = JSON.parse(JSON.stringify(track));
+      const trackRow = table.insertRow(trackCount);
+
+      const trackName = t.name;
+      const trackLink = t.link;
+
+      const nameCol = trackRow.insertCell(0);
+      const linkCol = trackRow.insertCell(1);
+
+      nameCol.innerHTML = `<th scope="col">${trackName}</th>`;
+      linkCol.innerHTML = `<th scope="col"><a href="${trackLink}" target="#blank">Play Song</a></th>`;
+
+      trackCount += 1;
+    });
+
+    document.getElementById('main-col').appendChild(table);
+  };
+  request.open('POST', '/abcs', false);
+  request.setRequestHeader('Content-Type', 'application/json');
+  const artistName = document.getElementById('artistInput').value;
+  const packet = `{"artist":"${artistName}"}`;
+  console.log(JSON.parse(JSON.stringify(packet)));
+  request.send(JSON.parse(JSON.stringify(packet)));
+}
+
+// eslint-disable-next-line no-unused-vars
 function updatePage() {
   getAuthStatus();
   if (localStorage.authenticated) {
