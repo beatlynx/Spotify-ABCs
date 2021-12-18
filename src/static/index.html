@@ -18,7 +18,9 @@
       <div class="row">
         <div id="main-col" class="col-8">
           <h1>Spotify ABCs</h1>
-          <div id="test">Test Text</div>
+          <div id="test">
+            <p>Welcome to the Spotify ABCs Beta! Please use the buttons in the sidebar to access test functionality.</p>
+          </div>
         </div>
         <div class="col-4">
           <a id="login-button" class="btn btn-primary" href="/auth/spotify">
@@ -33,13 +35,20 @@
           >
             Display Top Artists
           </button>
+          <br>
+          <br>
           <button
             type="button"
             class="btn btn-secondary"
             onclick="testPlaylist(); return"
           >
-            Display Top Artists
+            Create ABCs Playlist from Top Artist
           </button>
+          <br>
+          <br>
+          <a class="btn btn-danger" href="/auth/logout">
+            Logout
+          </a>
         </div>
       </div>
     </div>

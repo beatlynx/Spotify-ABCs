@@ -79,9 +79,18 @@ app.get('/scripts.js', (_req, res) => {
   res.sendFile(path.join(__dirname, '/static/scripts.js'));
 });
 
-app.get('/auth/spotify', passport.authenticate('spotify', { scope: ['user-read-private', 'user-library-read', 'user-top-read', 'user-read-recently-played', 'playlist-read-private'] }));
+app.get('/auth/spotify', passport.authenticate('spotify', { scope: ['user-read-private', 'user-library-read', 'user-top-read', 'user-read-recently-played', 'playlist-read-private', 'playlist-modify-private', 'playlist-modify-public'] }));
 
 app.get('/auth/spotify/callback', passport.authenticate('spotify', { successRedirect: '/', failureRedirect: '/' }));
+
+app.get('/auth/logout', (req, res) => {
+  req.logout();
+  session.spotifyAccessToken = '';
+  session.spotifyRefreshToken = '';
+  session.spotifyAuthenticated = false;
+  session.user = '';
+  res.redirect('/');
+});
 
 app.get('/auth/getuser', (req, res) => {
   console.log(session.user);
@@ -100,6 +109,14 @@ app.get('/auth/status', (req, res) => {
 
 function rand(max) {
   return Math.floor(Math.random() * max);
+}
+
+function ensureAuthenticated (req, res, next) {
+  if (session.spotifyAuthenticated) {
+    next();
+  } else {
+    res.redirect('/');
+  }
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -137,18 +154,6 @@ async function getTopArtist() {
   return null;
 }
 
-async function getTopArtistId() {
-  try {
-    spotify.setAccessToken(session.spotifyAccessToken);
-    const result = await spotify.getMyTopArtists();
-    const topArtists = result.body.items;
-    return Object.values(topArtists)[0].id;
-  } catch (err) {
-    console.error(err);
-  }
-  return null;
-}
-
 async function getTopArtists() {
   try {
     spotify.setAccessToken(session.spotifyAccessToken);
@@ -161,53 +166,69 @@ async function getTopArtists() {
   return null;
 }
 
-async function getAlbums(artistId) {
+async function trackSearch(artistName, letter) {
   try {
     spotify.setAccessToken(session.spotifyAccessToken);
-    const result = await spotify.getArtistAlbums(artistId, { include_groups: 'album', limit: 50 });
-    const albumList = Object.values(result.body.items);
-    return albumList;
-  } catch (err) {
-    console.error(err);
-  }
-  return null;
-}
-
-async function getTracks(albums, letter) {
-  try {
-    spotify.setAccessToken(session.spotifyAccessToken);
-    const finalAlbumList = albums;
-    console.log(finalAlbumList);
-    let trackList = await Promise.all(finalAlbumList.map(async (album) => {
-      const tracks = await spotify.getAlbumTracks(album.id);
-      const finalTrackList = await Promise.all(Object.values(tracks.body.items).map((track) => {
-        if (track.name[0] === letter || track.name[0] === letter.toUpperCase()) {
-          return track.name;
+    const result = await spotify.search(`artist:${artistName} AND track:${letter.toUpperCase()} OR track:${letter}`, ['track'], { limit: 50, market: 'US' });
+    let trackNames = await Promise.all(Object.values(result.body.tracks.items).map(
+      async (track) => {
+        if (track.name.startsWith(letter) || track.name.startsWith(letter.toUpperCase())) {
+          const trackObj = `{ "name": "${track.name}", "id": "${track.id}", "link": "${track.external_urls.spotify}" }`;
+          return JSON.parse(JSON.stringify(trackObj));
         }
         return null;
-      }));
-      return finalTrackList;
-    }));
-    trackList = trackList.flat(1);
-    trackList = trackList.filter((val) => (val != null));
-    return trackList;
+      },
+    ));
+    trackNames = trackNames.filter((trackName) => trackName !== null);
+    return trackNames[rand(trackNames.length)];
+    // return trackNames;
   } catch (err) {
     console.error(err);
+    return err;
   }
-  return null;
 }
 
-app.post('/topartists', async (_req, res) => {
+async function createABCsPlaylist(info, artistName) {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const result = await spotify.createPlaylist(`Spotify ABCs: ${artistName}`);
+    const trackIds = await Promise.all(Object.values(JSON.parse(info)).map((track) => {
+      console.log(track.id);
+      return `spotify:track:${track.id}`;
+    }));
+    await spotify.addTracksToPlaylist(result.body.id, trackIds);
+    return result.body.external_urls.spotify;
+  } catch (err) {
+    console.error(err);
+    return err;
+  }
+}
+
+app.post('/topartists', ensureAuthenticated, async (_req, res) => {
   const result = await getTopArtists();
   res.send(result);
 });
 
-app.post('/search', async (_req, res) => {
+app.post('/abcstop', ensureAuthenticated, async (_req, res) => {
   try {
-    const topArtistId = await getTopArtistId();
-    const result = await getAlbums(topArtistId);
-    const tracks = await getTracks(result, 'b');
-    res.send(tracks);
+    const topArtistName = await getTopArtist();
+    const letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+    let result = await Promise.all(
+      letters.map(async (letter) => trackSearch(topArtistName, letter)),
+    );
+    result = result.filter((track) => track !== undefined);
+    let finalResult = '{\n';
+    for (let i = 0; i < result.length; i += 1) {
+      finalResult += `"${i}": ${result[i]}${(i !== result.length - 1) ? ',' : ''}\n`;
+    }
+    finalResult += '\n}';
+    finalResult = JSON.parse(JSON.stringify(finalResult));
+    const resultAbcsPlaylist = await createABCsPlaylist(finalResult, topArtistName);
+    let finalObject = '{\n';
+    finalObject += `"0": ${JSON.stringify(finalResult)},`;
+    finalObject += `"1": "${resultAbcsPlaylist}" }`;
+    console.log(finalObject);
+    res.send(finalObject);
   } catch (err) {
     res.send(err);
   }
