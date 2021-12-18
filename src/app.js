@@ -98,17 +98,119 @@ app.get('/auth/status', (req, res) => {
   }
 });
 
-app.post('/topartists', (_req, res) => {
-  spotify.setAccessToken(session.spotifyAccessToken);
-  spotify.getMyTopArtists()
-    .then((data) => {
-      const topArtists = data.body.items;
-      // console.log(topArtists);
-      res.send(topArtists);
-    }, (err) => {
-      res.send(err);
-      // console.log('Something went wrong!', err);
+function rand(max) {
+  return Math.floor(Math.random() * max);
+}
+
+// eslint-disable-next-line no-unused-vars
+async function searchLetter(artist, letter) {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const data = await spotify.searchTracks(`artist:${artist} track:${letter}`, { limit: 50, offset: 10 });
+    const dataList = Object.values(data.body.tracks.items);
+    const finalList = [];
+    dataList.forEach((track) => {
+      // console.log(track.name);
+      if (track.name.startsWith(letter) || track.name.startsWith(`${letter}`.toUpperCase())) {
+        finalList.push(track.name);
+      }
     });
+    const song = finalList[rand(finalList.length)];
+    // console.log(song);
+    return song;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+// eslint-disable-next-line no-unused-vars
+async function getTopArtist() {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const result = await spotify.getMyTopArtists();
+    const topArtists = result.body.items;
+    return Object.values(topArtists)[0].name;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+async function getTopArtistId() {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const result = await spotify.getMyTopArtists();
+    const topArtists = result.body.items;
+    return Object.values(topArtists)[0].id;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+async function getTopArtists() {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const result = await spotify.getMyTopArtists();
+    const topArtists = result.body.items;
+    return topArtists;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+async function getAlbums(artistId) {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const result = await spotify.getArtistAlbums(artistId, { include_groups: 'album', limit: 50 });
+    const albumList = Object.values(result.body.items);
+    return albumList;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+async function getTracks(albums, letter) {
+  try {
+    spotify.setAccessToken(session.spotifyAccessToken);
+    const finalAlbumList = albums;
+    console.log(finalAlbumList);
+    let trackList = await Promise.all(finalAlbumList.map(async (album) => {
+      const tracks = await spotify.getAlbumTracks(album.id);
+      const finalTrackList = await Promise.all(Object.values(tracks.body.items).map((track) => {
+        if (track.name[0] === letter || track.name[0] === letter.toUpperCase()) {
+          return track.name;
+        }
+        return null;
+      }));
+      return finalTrackList;
+    }));
+    trackList = trackList.flat(1);
+    trackList = trackList.filter((val) => (val != null));
+    return trackList;
+  } catch (err) {
+    console.error(err);
+  }
+  return null;
+}
+
+app.post('/topartists', async (_req, res) => {
+  const result = await getTopArtists();
+  res.send(result);
+});
+
+app.post('/search', async (_req, res) => {
+  try {
+    const topArtistId = await getTopArtistId();
+    const result = await getAlbums(topArtistId);
+    const tracks = await getTracks(result, 'b');
+    res.send(tracks);
+  } catch (err) {
+    res.send(err);
+  }
 });
 
 // eslint-disable-next-line no-unused-vars

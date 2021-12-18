@@ -60,6 +60,15 @@ function getAuthStatus() {
   request.send();
 }
 
+function testPlaylist() {
+  const request = new XMLHttpRequest();
+  request.onload = function playlistSearch() {
+    console.log(request.response);
+  };
+  request.open('POST', '/search', false);
+  request.send();
+}
+
 // eslint-disable-next-line no-unused-vars
 function updatePage() {
   getAuthStatus();
